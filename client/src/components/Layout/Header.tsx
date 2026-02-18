@@ -11,6 +11,8 @@ interface HeaderProps {
 }
 
 export const Header = ({ theme, navItems, currentPath, onNavigate, onToggleTheme }: HeaderProps) => {
+  // Перехватываем обычный клик, чтобы навигация была SPA без перезагрузки.
+  // При модификаторах (cmd/ctrl/shift) не мешаем стандартному поведению браузера.
   const handleNavClick = (event: MouseEvent<HTMLAnchorElement>, path: AppRoute) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
       return
@@ -30,6 +32,7 @@ export const Header = ({ theme, navItems, currentPath, onNavigate, onToggleTheme
 
       <nav aria-label="Разделы сайта" className="site-nav">
         {navItems.map((item) => {
+          // Подсветка активного раздела в хедере.
           const isActive = currentPath === item.path
 
           return (

@@ -4,13 +4,16 @@ interface WelcomeIntroProps {
   onFinish: () => void
 }
 
+// Длительность финального fade-out перед скрытием заставки.
 const EXIT_DURATION_MS = 340
 
+// Временные точки появления строк (мс) для последовательной анимации.
 const lineAppearanceDelays = [180, 860, 1540]
 
 export const WelcomeIntro = ({ onFinish }: WelcomeIntroProps) => {
   const [visibleLines, setVisibleLines] = useState([false, false, false])
   const [isClosing, setIsClosing] = useState(false)
+  // Блокируем повторное завершение, чтобы onFinish не вызвался несколько раз.
   const finishedRef = useRef(false)
 
   useEffect(() => {
@@ -26,6 +29,7 @@ export const WelcomeIntro = ({ onFinish }: WelcomeIntroProps) => {
       onFinish()
     }
 
+    // Для пользователей с reduce-motion оставляем короткий, но функциональный сценарий.
     if (prefersReducedMotion) {
       setVisibleLines([true, true, true])
       timers.push(
@@ -40,6 +44,7 @@ export const WelcomeIntro = ({ onFinish }: WelcomeIntroProps) => {
       }
     }
 
+    // Поочередно открываем строки приветствия.
     lineAppearanceDelays.forEach((delay, index) => {
       timers.push(
         window.setTimeout(() => {
@@ -50,6 +55,7 @@ export const WelcomeIntro = ({ onFinish }: WelcomeIntroProps) => {
       )
     })
 
+    // Запускаем автоматическое закрытие заставки после показа всех строк.
     const outroStartDelay = 2860
     timers.push(
       window.setTimeout(() => {
@@ -64,6 +70,7 @@ export const WelcomeIntro = ({ onFinish }: WelcomeIntroProps) => {
   }, [onFinish])
 
   const handleSkip = () => {
+    // Skip должен работать только пока интро активно.
     if (isClosing || finishedRef.current) {
       return
     }
@@ -103,4 +110,3 @@ export const WelcomeIntro = ({ onFinish }: WelcomeIntroProps) => {
     </div>
   )
 }
-

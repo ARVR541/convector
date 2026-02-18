@@ -14,6 +14,7 @@ interface JsonRequestOptions extends RequestInit {
   timeoutMs?: number
 }
 
+// Безопасный парсинг: если backend вернул не JSON, не падаем исключением.
 const parseJsonSafe = (raw: string): unknown => {
   if (!raw) {
     return null
@@ -28,6 +29,7 @@ const parseJsonSafe = (raw: string): unknown => {
 
 const hasCyrillic = (value: string): boolean => /[А-Яа-яЁё]/.test(value)
 
+// Приводим backend-ошибки к понятным для пользователя сообщениям.
 const extractErrorMessage = (payload: unknown, status: number): string => {
   if (!payload || typeof payload !== "object") {
     if (status >= 500) {
@@ -62,6 +64,7 @@ const extractErrorMessage = (payload: unknown, status: number): string => {
 export const requestJson = async <T>(url: string, options: JsonRequestOptions = {}): Promise<T> => {
   const { timeoutMs = 9000, headers, ...rest } = options
 
+  // Используем AbortController для унифицированного таймаута fetch.
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
 
@@ -78,24 +81,29 @@ export const requestJson = async <T>(url: string, options: JsonRequestOptions = 
     const raw = await response.text()
     const payload = parseJsonSafe(raw)
 
+    // Нормализуем non-2xx в типизированную ошибку с HTTP-статусом.
     if (!response.ok) {
       throw new HttpError(extractErrorMessage(payload, response.status), response.status, raw)
     }
 
     return payload as T
   } catch (error) {
+    // Если уже HttpError — пробрасываем без изменений.
     if (error instanceof HttpError) {
       throw error
     }
 
+    // Отдельно обрабатываем таймаут.
     if (error instanceof Error && error.name === "AbortError") {
       throw new HttpError("Превышено время ожидания запроса", 408)
     }
 
+    // Если в ошибке уже есть русскоязычное сообщение, сохраняем его.
     if (error instanceof Error && hasCyrillic(error.message)) {
       throw new HttpError(error.message, 0)
     }
 
+    // Финальный fallback для сетевых сбоев.
     throw new HttpError("Ошибка сети. Проверьте подключение и повторите попытку.", 0)
   } finally {
     window.clearTimeout(timeoutId)

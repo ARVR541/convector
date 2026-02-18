@@ -18,6 +18,7 @@ interface ConverterCardProps {
   onNotify: (toast: ToastInput) => void
 }
 
+// Идентификатор записи истории для key/details и устойчивого хранения в localStorage.
 const createHistoryId = (): string =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -39,6 +40,7 @@ export const ConverterCard = ({
   const [result, setResult] = useState<number | null>(null)
   const [lastAmount, setLastAmount] = useState<number | null>(null)
 
+  // rawAmount хранит ввод пользователя "как есть", parsedAmount — безопасное число для формулы.
   const parsedAmount = useMemo(() => parseAmountInput(rawAmount), [rawAmount])
 
   const handleFromChange = (currency: CurrencyCode) => {
@@ -55,12 +57,14 @@ export const ConverterCard = ({
     const nextFrom = toCurrency
     const nextTo = fromCurrency
 
+    // Меняем валюты местами и сразу запоминаем пару в настройках.
     setFromCurrency(nextFrom)
     setToCurrency(nextTo)
     onRememberPair(nextFrom, nextTo)
   }
 
   const handleConvert = () => {
+    // Сначала валидируем пользовательский ввод и выбранные валюты.
     const validation = validateConversionInput(rawAmount, fromCurrency, toCurrency)
 
     if (validation.error || validation.parsedAmount === null) {
@@ -76,6 +80,7 @@ export const ConverterCard = ({
       return
     }
 
+    // Курсы должны быть загружены до выполнения вычисления.
     if (!ratesState) {
       const message = "Курсы еще загружаются. Попробуйте снова."
       setInlineError("Курсы пока не загружены")
@@ -92,6 +97,7 @@ export const ConverterCard = ({
     const rateFrom = ratesState.rates[fromCurrency]
     const rateTo = ratesState.rates[toCurrency]
 
+    // Защита от битых курсов (NaN/0/отрицательные), чтобы избежать некорректного результата.
     if (!Number.isFinite(rateFrom) || !Number.isFinite(rateTo) || rateFrom <= 0 || rateTo <= 0) {
       const message = "Не удалось выполнить конвертацию из-за некорректных курсов."
       setInlineError("Некорректные данные курсов")
@@ -105,12 +111,15 @@ export const ConverterCard = ({
       return
     }
 
+    // Основная формула конвертации для rubPerUnit:
+    // result = amount * rateFrom / rateTo
     const rawResult = validation.parsedAmount * rateFrom / rateTo
 
     setInlineError(null)
     setResult(rawResult)
     setLastAmount(validation.parsedAmount)
 
+    // Сохраняем полную запись операции, чтобы потом показать детали в истории.
     onConverted({
       id: createHistoryId(),
       from: fromCurrency,
@@ -122,6 +131,7 @@ export const ConverterCard = ({
       rateTo
     })
 
+    // Нотификация об успешной конвертации.
     onNotify({
       kind: "success",
       title: "Конвертация выполнена",

@@ -15,6 +15,7 @@ interface UseRatesResult {
   retry: () => Promise<void>
 }
 
+// Проверяем, что в кеше действительно все поддерживаемые валюты и корректные числа > 0.
 const isValidRatesObject = (value: unknown): value is CurrencyRates => {
   if (!value || typeof value !== "object") {
     return false
@@ -26,6 +27,7 @@ const isValidRatesObject = (value: unknown): value is CurrencyRates => {
   })
 }
 
+// Метаданные кэша нужны для TTL и отображения "дата курсов / когда обновлено локально".
 const isValidRatesMeta = (value: unknown): value is RatesMeta => {
   if (!value || typeof value !== "object") {
     return false
@@ -43,6 +45,7 @@ const isValidRatesMeta = (value: unknown): value is RatesMeta => {
   )
 }
 
+// Читаем кэш из localStorage только если обе части (rates + meta) валидны.
 const readCachedRatesState = (): RatesState | null => {
   const cachedRates = readStorage<unknown>(STORAGE_KEYS.currencyRates, null)
   const cachedMeta = readStorage<unknown>(STORAGE_KEYS.ratesMeta, null)
@@ -57,8 +60,10 @@ const readCachedRatesState = (): RatesState | null => {
   }
 }
 
+// Кэш считается свежим, пока не вышел TTL в 1 час.
 const isCacheFresh = (meta: RatesMeta): boolean => Date.now() - meta.timestamp < RATES_TTL_MS
 
+// Единая точка записи кэша, чтобы не дублировать логику по ключам.
 const persistRatesState = (state: RatesState): void => {
   writeStorage(STORAGE_KEYS.currencyRates, state.rates)
   writeStorage(STORAGE_KEYS.ratesMeta, state.meta)
@@ -69,6 +74,10 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Основной сценарий загрузки:
+  // 1) пытаемся получить fresh данные с backend,
+  // 2) при ошибке откатываемся на fallback-кэш, если он есть,
+  // 3) иначе отдаем ошибку в UI.
   const loadRates = useCallback(
     async (fallbackRatesState: RatesState | null, showLoader: boolean): Promise<void> => {
       if (showLoader) {
@@ -125,6 +134,7 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
     [notify]
   )
 
+  // При старте сначала быстро показываем local cache, затем при необходимости догружаем live.
   useEffect(() => {
     const cachedState = readCachedRatesState()
 
@@ -140,6 +150,7 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
     void loadRates(cachedState, true)
   }, [loadRates])
 
+  // Retry использует тот же pipeline, но заново читает fallback из localStorage.
   const retry = useCallback(async () => {
     const fallbackState = readCachedRatesState()
     await loadRates(fallbackState, true)

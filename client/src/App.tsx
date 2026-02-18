@@ -15,11 +15,14 @@ import { useToast } from "./hooks/useToast"
 import type { AppRoute, ConversionHistoryItem, CurrencyCode } from "./types/domain"
 import { HEADER_NAV_LINKS, MAX_HISTORY_ITEMS, STORAGE_KEYS } from "./utils/constants"
 
+// Генерация устойчивого id для истории: используем crypto UUID, а при отсутствии — fallback.
 const createHistoryId = (): string =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
+// Нормализуем историю перед отображением/сохранением:
+// 1) фильтруем битые записи, 2) гарантируем наличие id, 3) ограничиваем до последних 10.
 const normalizeHistory = (history: ConversionHistoryItem[]): ConversionHistoryItem[] =>
   history
     .filter((item) => Number.isFinite(item.amount) && Number.isFinite(item.result) && Number.isFinite(item.timestamp))
@@ -29,6 +32,7 @@ const normalizeHistory = (history: ConversionHistoryItem[]): ConversionHistoryIt
     }))
     .slice(0, MAX_HISTORY_ITEMS)
 
+// Приводим путь к одному из поддерживаемых роутов приложения.
 const normalizeRoute = (pathname: string): AppRoute => {
   if (pathname === "/history") {
     return "/history"
@@ -63,12 +67,14 @@ const App = () => {
 
   const normalizedHistory = useMemo(() => normalizeHistory(history), [history])
 
+  // Если в localStorage попали нестабильные записи, приводим их к валидному виду один раз.
   useEffect(() => {
     if (normalizedHistory.length !== history.length || normalizedHistory.some((item, index) => item.id !== history[index]?.id)) {
       setHistory(normalizedHistory)
     }
   }, [normalizedHistory, history, setHistory])
 
+  // Синхронизация ручного роутинга с адресной строкой и кнопками браузера Back/Forward.
   useEffect(() => {
     const nextRoute = normalizeRoute(window.location.pathname)
 
@@ -89,6 +95,7 @@ const App = () => {
     }
   }, [setCurrentRoute])
 
+  // После успешной конвертации добавляем запись в начало истории и снова ограничиваем размер.
   const handleConverted = useCallback(
     (entry: ConversionHistoryItem) => {
       setHistory((previousHistory) => [entry, ...normalizeHistory(previousHistory)].slice(0, MAX_HISTORY_ITEMS))
@@ -116,6 +123,7 @@ const App = () => {
     void retry()
   }, [retry])
 
+  // Навигация без перезагрузки страницы: pushState + обновление состояния + прокрутка вверх.
   const navigate = useCallback(
     (nextRoute: AppRoute) => {
       if (nextRoute === currentRoute) {
@@ -129,10 +137,12 @@ const App = () => {
     [currentRoute, setCurrentRoute]
   )
 
+  // Критическую ошибку показываем только на странице конвертера, где нужны курсы.
   const hasFatalError = Boolean(error && !ratesState && currentRoute === "/")
 
   return (
     <div className="app-root" data-theme={theme}>
+      {/* Полноэкранная вступительная заставка. После завершения открывает основной UI. */}
       {isIntroFinished ? null : <WelcomeIntro onFinish={() => setIsIntroFinished(true)} />}
 
       <div className={`app-shell ${isIntroFinished ? "is-ready" : "is-hidden"}`.trim()} aria-hidden={!isIntroFinished}>
@@ -145,6 +155,7 @@ const App = () => {
         />
 
         <main className="app-main">
+          {/* Страница конвертера */}
           {currentRoute === "/" ? (
             <>
               {isLoading ? <Loader label="Загрузка курсов..." /> : null}
@@ -172,12 +183,14 @@ const App = () => {
             </>
           ) : null}
 
+          {/* Отдельная страница истории */}
           {currentRoute === "/history" ? (
             <SectionReveal delayMs={80}>
               <HistoryPanel items={normalizedHistory} onClearHistory={handleClearHistory} />
             </SectionReveal>
           ) : null}
 
+          {/* Информационная страница о проекте и источнике данных */}
           {currentRoute === "/about" ? (
             <SectionReveal delayMs={80}>
               <section className="glass-panel about-card" id="about" aria-labelledby="about-title">

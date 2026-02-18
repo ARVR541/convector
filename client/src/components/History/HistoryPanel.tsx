@@ -8,6 +8,7 @@ interface HistoryPanelProps {
 }
 
 export const HistoryPanel = ({ items, onClearHistory }: HistoryPanelProps) => {
+  // Локальный флаг для двухшагового удаления (подтверждение перед очисткой).
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
   const handleClearClick = () => {
@@ -40,6 +41,7 @@ export const HistoryPanel = ({ items, onClearHistory }: HistoryPanelProps) => {
       </div>
 
       {isConfirmOpen ? (
+        // Подтверждение защищает от случайной очистки истории одним кликом.
         <div className="history-confirm" role="alertdialog" aria-live="assertive" aria-label="Подтверждение очистки истории">
           <p>Вы уверены, что хотите удалить всю историю?</p>
           <div className="history-confirm-actions">
@@ -56,6 +58,7 @@ export const HistoryPanel = ({ items, onClearHistory }: HistoryPanelProps) => {
       {items.length === 0 ? (
         <p className="history-empty">Пока нет конвертаций. Здесь появятся последние 10 успешных операций.</p>
       ) : (
+        // История уже ограничена до 10 элементов на уровне App/hook.
         <ul className="history-list">
           {items.map((item) => (
             <HistoryItem key={item.id} item={item} />
