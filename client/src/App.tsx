@@ -58,9 +58,13 @@ const App = () => {
   const { toasts, pushToast, removeToast } = useToast()
   const [currentRoute, setCurrentRoute] = useState<AppRoute>(getCurrentRoute)
   const [isIntroFinished, setIsIntroFinished] = useState(false)
+  const [selectedRateDate, setSelectedRateDate] = useState("")
+  const maxRateDate = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const requestedRateDate = selectedRateDate.trim() ? selectedRateDate : null
 
   const { ratesState, isLoading, error, retry } = useRates({
-    notify: pushToast
+    notify: pushToast,
+    requestedDate: requestedRateDate
   })
 
   const [history, setHistory] = useLocalStorage<ConversionHistoryItem[]>(STORAGE_KEYS.conversionHistory, [])
@@ -174,6 +178,9 @@ const App = () => {
                     disabled={isLoading || !ratesState}
                     initialFrom={settings.preferredFrom}
                     initialTo={settings.preferredTo}
+                    selectedRateDate={selectedRateDate}
+                    maxRateDate={maxRateDate}
+                    onRateDateChange={setSelectedRateDate}
                     onRememberPair={handleRememberPair}
                     onConverted={handleConverted}
                     onNotify={pushToast}

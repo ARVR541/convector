@@ -46,8 +46,15 @@ const assertRatesPayload = (payload: unknown): RatesResponse => {
   }
 }
 
-export const getRates = async (): Promise<RatesResponse> => {
-  const payload = await requestJson<unknown>(`${API_BASE_URL}/rates`, {
+export const getRates = async (requestedDate?: string): Promise<RatesResponse> => {
+  const searchParams = new URLSearchParams()
+
+  if (requestedDate) {
+    searchParams.set("date", requestedDate)
+  }
+
+  const requestUrl = searchParams.size > 0 ? `${API_BASE_URL}/rates?${searchParams.toString()}` : `${API_BASE_URL}/rates`
+  const payload = await requestJson<unknown>(requestUrl, {
     method: "GET"
   })
 

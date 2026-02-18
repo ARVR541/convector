@@ -454,6 +454,13 @@ summary:focus-visible {
   gap: 0.38rem;
 }
 
+.date-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
 .field-label {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -566,6 +573,11 @@ summary:focus-visible {
 
 .convert-button {
   width: 100%;
+}
+
+.date-today-button {
+  min-height: 2.9rem;
+  white-space: nowrap;
 }
 
 button:disabled,
@@ -845,6 +857,14 @@ select:disabled {
 }
 
 @media (max-width: 640px) {
+  .date-row {
+    grid-template-columns: 1fr;
+  }
+
+  .date-today-button {
+    width: 100%;
+  }
+
   .currency-row {
     grid-template-columns: 1fr;
   }

@@ -1,4 +1,4 @@
-export type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP" | "CNY"
+export type CurrencyCode = "RUB" | "USD" | "EUR" | "GBP" | "CNY" | "JPY" | "CHF"
 export type Theme = "dark" | "light"
 export type AppRoute = "/" | "/history" | "/about"
 

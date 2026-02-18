@@ -6,6 +6,7 @@ import { CURRENCY_CODES, RATES_TTL_MS, STORAGE_KEYS } from "../utils/constants"
 
 interface UseRatesOptions {
   notify?: (toast: ToastInput) => void
+  requestedDate?: string | null
 }
 
 interface UseRatesResult {
@@ -14,6 +15,11 @@ interface UseRatesResult {
   error: string | null
   retry: () => Promise<void>
 }
+
+type RatesBucket = Record<string, CurrencyRates>
+type RatesMetaBucket = Record<string, RatesMeta>
+const LATEST_CACHE_KEY = "latest"
+const cacheKeyForDate = (requestedDate: string | null | undefined): string => requestedDate ? `date:${requestedDate}` : LATEST_CACHE_KEY
 
 // Проверяем, что в кеше действительно все поддерживаемые валюты и корректные числа > 0.
 const isValidRatesObject = (value: unknown): value is CurrencyRates => {
@@ -45,18 +51,72 @@ const isValidRatesMeta = (value: unknown): value is RatesMeta => {
   )
 }
 
-// Читаем кэш из localStorage только если обе части (rates + meta) валидны.
-const readCachedRatesState = (): RatesState | null => {
+const isValidRatesBucket = (value: unknown): value is RatesBucket => {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  return Object.values(value as Record<string, unknown>).every((bucketValue) => isValidRatesObject(bucketValue))
+}
+
+const isValidRatesMetaBucket = (value: unknown): value is RatesMetaBucket => {
+  if (!value || typeof value !== "object") {
+    return false
+  }
+
+  return Object.values(value as Record<string, unknown>).every((bucketValue) => isValidRatesMeta(bucketValue))
+}
+
+const normalizeRatesBucket = (value: unknown): RatesBucket => {
+  if (isValidRatesBucket(value)) {
+    return { ...value }
+  }
+
+  // Совместимость со старым форматом, где в key хранился только один набор курсов.
+  if (isValidRatesObject(value)) {
+    return { [LATEST_CACHE_KEY]: value }
+  }
+
+  return {}
+}
+
+const normalizeRatesMetaBucket = (value: unknown): RatesMetaBucket => {
+  if (isValidRatesMetaBucket(value)) {
+    return { ...value }
+  }
+
+  // Совместимость со старым форматом, где в key хранился только один meta-объект.
+  if (isValidRatesMeta(value)) {
+    return { [LATEST_CACHE_KEY]: value }
+  }
+
+  return {}
+}
+
+// Читаем кэш из localStorage только если обе части (rates + meta) валидны для запрошенного cacheKey.
+const readCachedRatesState = (cacheKey: string): RatesState | null => {
   const cachedRates = readStorage<unknown>(STORAGE_KEYS.currencyRates, null)
   const cachedMeta = readStorage<unknown>(STORAGE_KEYS.ratesMeta, null)
 
-  if (!isValidRatesObject(cachedRates) || !isValidRatesMeta(cachedMeta)) {
+  if (isValidRatesObject(cachedRates) && isValidRatesMeta(cachedMeta) && cacheKey === LATEST_CACHE_KEY) {
+    return {
+      rates: cachedRates,
+      meta: cachedMeta
+    }
+  }
+
+  const ratesBucket = normalizeRatesBucket(cachedRates)
+  const metaBucket = normalizeRatesMetaBucket(cachedMeta)
+  const ratesByKey = ratesBucket[cacheKey]
+  const metaByKey = metaBucket[cacheKey]
+
+  if (!ratesByKey || !metaByKey || !isValidRatesObject(ratesByKey) || !isValidRatesMeta(metaByKey)) {
     return null
   }
 
   return {
-    rates: cachedRates,
-    meta: cachedMeta
+    rates: ratesByKey,
+    meta: metaByKey
   }
 }
 
@@ -64,12 +124,21 @@ const readCachedRatesState = (): RatesState | null => {
 const isCacheFresh = (meta: RatesMeta): boolean => Date.now() - meta.timestamp < RATES_TTL_MS
 
 // Единая точка записи кэша, чтобы не дублировать логику по ключам.
-const persistRatesState = (state: RatesState): void => {
-  writeStorage(STORAGE_KEYS.currencyRates, state.rates)
-  writeStorage(STORAGE_KEYS.ratesMeta, state.meta)
+const persistRatesState = (cacheKey: string, state: RatesState): void => {
+  const rawRates = readStorage<unknown>(STORAGE_KEYS.currencyRates, {})
+  const rawMeta = readStorage<unknown>(STORAGE_KEYS.ratesMeta, {})
+
+  const ratesBucket = normalizeRatesBucket(rawRates)
+  const metaBucket = normalizeRatesMetaBucket(rawMeta)
+
+  ratesBucket[cacheKey] = state.rates
+  metaBucket[cacheKey] = state.meta
+
+  writeStorage(STORAGE_KEYS.currencyRates, ratesBucket)
+  writeStorage(STORAGE_KEYS.ratesMeta, metaBucket)
 }
 
-export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
+export const useRates = ({ notify, requestedDate = null }: UseRatesOptions = {}): UseRatesResult => {
   const [ratesState, setRatesState] = useState<RatesState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -80,12 +149,14 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
   // 3) иначе отдаем ошибку в UI.
   const loadRates = useCallback(
     async (fallbackRatesState: RatesState | null, showLoader: boolean): Promise<void> => {
+      const cacheKey = cacheKeyForDate(requestedDate)
+
       if (showLoader) {
         setIsLoading(true)
       }
 
       try {
-        const response = await getRates()
+        const response = await getRates(requestedDate ?? undefined)
 
         const nextState: RatesState = {
           rates: response.rates,
@@ -97,7 +168,7 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
         }
 
         setRatesState(nextState)
-        persistRatesState(nextState)
+        persistRatesState(cacheKey, nextState)
         setError(null)
 
         if (response.stale) {
@@ -131,16 +202,18 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
         setIsLoading(false)
       }
     },
-    [notify]
+    [notify, requestedDate]
   )
 
-  // При старте сначала быстро показываем local cache, затем при необходимости догружаем live.
+  // При старте и при смене даты сначала быстро показываем local cache по этой дате,
+  // затем при необходимости догружаем live.
   useEffect(() => {
-    const cachedState = readCachedRatesState()
+    const cacheKey = cacheKeyForDate(requestedDate)
+    const cachedState = readCachedRatesState(cacheKey)
+    setRatesState(cachedState)
+    setError(null)
 
     if (cachedState) {
-      setRatesState(cachedState)
-
       if (isCacheFresh(cachedState.meta)) {
         setIsLoading(false)
         return
@@ -148,13 +221,14 @@ export const useRates = ({ notify }: UseRatesOptions = {}): UseRatesResult => {
     }
 
     void loadRates(cachedState, true)
-  }, [loadRates])
+  }, [loadRates, requestedDate])
 
   // Retry использует тот же pipeline, но заново читает fallback из localStorage.
   const retry = useCallback(async () => {
-    const fallbackState = readCachedRatesState()
+    const cacheKey = cacheKeyForDate(requestedDate)
+    const fallbackState = readCachedRatesState(cacheKey)
     await loadRates(fallbackState, true)
-  }, [loadRates])
+  }, [loadRates, requestedDate])
 
   return useMemo(
     () => ({

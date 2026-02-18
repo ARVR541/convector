@@ -1,4 +1,4 @@
-export const SUPPORTED_CURRENCIES = ["RUB", "USD", "EUR", "GBP", "CNY"] as const
+export const SUPPORTED_CURRENCIES = ["RUB", "USD", "EUR", "GBP", "CNY", "JPY", "CHF"] as const
 
 export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number]
 export type ForeignCurrencyCode = Exclude<CurrencyCode, "RUB">

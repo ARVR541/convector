@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo } from "react"
-import { DEFAULT_SETTINGS, STORAGE_KEYS } from "../utils/constants"
+import { CURRENCY_CODES, DEFAULT_SETTINGS, STORAGE_KEYS } from "../utils/constants"
 import type { CurrencyCode, Theme, UserSettings } from "../types/domain"
 import { useLocalStorage } from "./useLocalStorage"
 
-const isCurrencyCode = (value: string): value is CurrencyCode =>
-  value === "RUB" || value === "USD" || value === "EUR" || value === "GBP" || value === "CNY"
+const currencyCodeSet = new Set<CurrencyCode>(CURRENCY_CODES)
+const isCurrencyCode = (value: string): value is CurrencyCode => currencyCodeSet.has(value as CurrencyCode)
 
 const sanitizeSettings = (value: UserSettings): UserSettings => {
   const theme: Theme = value.theme === "light" ? "light" : "dark"

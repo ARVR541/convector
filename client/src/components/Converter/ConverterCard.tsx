@@ -5,6 +5,7 @@ import { formatAmount } from "../../utils/format"
 import { parseAmountInput, validateConversionInput } from "../../utils/validation"
 import { AmountInput } from "./AmountInput"
 import { CurrencySelect } from "./CurrencySelect"
+import { RateDateInput } from "./RateDateInput"
 import { ResultPanel } from "./ResultPanel"
 import { SwapButton } from "./SwapButton"
 
@@ -13,6 +14,9 @@ interface ConverterCardProps {
   disabled: boolean
   initialFrom: CurrencyCode
   initialTo: CurrencyCode
+  selectedRateDate: string
+  maxRateDate: string
+  onRateDateChange: (nextDate: string) => void
   onRememberPair: (from: CurrencyCode, to: CurrencyCode) => void
   onConverted: (entry: ConversionHistoryItem) => void
   onNotify: (toast: ToastInput) => void
@@ -29,6 +33,9 @@ export const ConverterCard = ({
   disabled,
   initialFrom,
   initialTo,
+  selectedRateDate,
+  maxRateDate,
+  onRateDateChange,
   onRememberPair,
   onConverted,
   onNotify
@@ -155,6 +162,8 @@ export const ConverterCard = ({
         disabled={disabled}
         onChange={setRawAmount}
       />
+
+      <RateDateInput value={selectedRateDate} maxDate={maxRateDate} disabled={disabled} onChange={onRateDateChange} />
 
       <div className="currency-row">
         <CurrencySelect

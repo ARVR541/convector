@@ -6,6 +6,10 @@ const logger_1 = require("../utils/logger");
 const CBR_DAILY_URL = "https://www.cbr-xml-daily.ru/daily_json.js";
 const REQUEST_TIMEOUT_MS = 8000;
 const REQUIRED_FOREIGN_CURRENCIES = rates_1.SUPPORTED_CURRENCIES.filter((currency) => currency !== "RUB");
+const archiveUrlForDate = (isoDate) => {
+    const [year, month, day] = isoDate.split("-");
+    return `https://www.cbr-xml-daily.ru/archive/${year}/${month}/${day}/daily_json.js`;
+};
 const normalizeDate = (rawDate) => {
     const directMatch = rawDate.match(/^\d{4}-\d{2}-\d{2}/);
     if (directMatch) {
@@ -27,11 +31,12 @@ const toRubPerUnit = (item) => {
     }
     return rubPerUnit;
 };
-const fetchRatesFromCbr = async () => {
+const fetchRatesFromCbr = async (requestedDate) => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const requestUrl = requestedDate ? archiveUrlForDate(requestedDate) : CBR_DAILY_URL;
     try {
-        const response = await fetch(CBR_DAILY_URL, {
+        const response = await fetch(requestUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
             signal: controller.signal
@@ -56,7 +61,9 @@ const fetchRatesFromCbr = async () => {
             USD: 0,
             EUR: 0,
             GBP: 0,
-            CNY: 0
+            CNY: 0,
+            JPY: 0,
+            CHF: 0
         };
         for (const currencyCode of REQUIRED_FOREIGN_CURRENCIES) {
             const item = valuteByCode.get(currencyCode);
