@@ -1,4 +1,4 @@
-# Currency Converter
+# Конвектор валют
 
 ## Обзор проекта
 Это full-stack курсовой проект с фронтендом на React + TypeScript и бэкендом на Express + TypeScript.
