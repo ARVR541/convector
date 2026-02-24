@@ -26,9 +26,9 @@ currency-converter/
 cd server
 npm install
 npm run dev
-```
 cd /Users/ariver/Documents/коды/Конвектор/currency-converter/server
 npm run dev
+```
 
 Бэкенд: `http://localhost:4000`
 
@@ -37,9 +37,9 @@ npm run dev
 cd client
 npm install
 npm run dev
-```
 cd /Users/ariver/Documents/коды/Конвектор/currency-converter/client
 npm run dev
+```
 
 Фронтенд: `http://localhost:5173`
 
