@@ -1,0 +1,50 @@
+import { useCallback, useEffect, useMemo } from "react";
+import { CURRENCY_CODES, DEFAULT_SETTINGS, STORAGE_KEYS } from "../utils/constants";
+import { useLocalStorage } from "./useLocalStorage";
+const currencyCodeSet = new Set(CURRENCY_CODES);
+const isCurrencyCode = (value) => currencyCodeSet.has(value);
+const sanitizeSettings = (value) => {
+    const theme = value.theme === "light" ? "light" : "dark";
+    const preferredFrom = isCurrencyCode(value.preferredFrom) ? value.preferredFrom : DEFAULT_SETTINGS.preferredFrom;
+    const preferredTo = isCurrencyCode(value.preferredTo) ? value.preferredTo : DEFAULT_SETTINGS.preferredTo;
+    return {
+        theme,
+        preferredFrom,
+        preferredTo
+    };
+};
+export const useTheme = () => {
+    const [rawSettings, setRawSettings] = useLocalStorage(STORAGE_KEYS.userSettings, DEFAULT_SETTINGS);
+    const settings = useMemo(() => sanitizeSettings(rawSettings), [rawSettings]);
+    useEffect(() => {
+        const root = document.documentElement;
+        root.setAttribute("data-theme", settings.theme);
+        root.classList.toggle("theme-dark", settings.theme === "dark");
+        root.classList.toggle("theme-light", settings.theme === "light");
+    }, [settings.theme]);
+    const setTheme = useCallback((theme) => {
+        setRawSettings((previous) => ({
+            ...DEFAULT_SETTINGS,
+            ...previous,
+            theme
+        }));
+    }, [setRawSettings]);
+    const setPreferredPair = useCallback((preferredFrom, preferredTo) => {
+        setRawSettings((previous) => ({
+            ...DEFAULT_SETTINGS,
+            ...previous,
+            preferredFrom,
+            preferredTo
+        }));
+    }, [setRawSettings]);
+    const toggleTheme = useCallback(() => {
+        setTheme(settings.theme === "dark" ? "light" : "dark");
+    }, [setTheme, settings.theme]);
+    return {
+        theme: settings.theme,
+        settings,
+        setTheme,
+        setPreferredPair,
+        toggleTheme
+    };
+};
