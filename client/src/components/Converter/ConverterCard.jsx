@@ -1,0 +1,126 @@
+import { useMemo, useState } from "react";
+import { CURRENCY_BY_CODE } from "../../utils/constants";
+import { formatAmount } from "../../utils/format";
+import { parseAmountInput, validateConversionInput } from "../../utils/validation";
+import { AmountInput } from "./AmountInput";
+import { CurrencySelect } from "./CurrencySelect";
+import { RateDateInput } from "./RateDateInput";
+import { ResultPanel } from "./ResultPanel";
+import { SwapButton } from "./SwapButton";
+// Идентификатор записи истории для key/details и устойчивого хранения в localStorage.
+const createHistoryId = () => typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+export const ConverterCard = ({ ratesState, disabled, initialFrom, initialTo, selectedRateDate, maxRateDate, onRateDateChange, onRememberPair, onConverted, onNotify }) => {
+    const [rawAmount, setRawAmount] = useState("1");
+    const [fromCurrency, setFromCurrency] = useState(initialFrom);
+    const [toCurrency, setToCurrency] = useState(initialTo);
+    const [inlineError, setInlineError] = useState(null);
+    const [result, setResult] = useState(null);
+    const [lastAmount, setLastAmount] = useState(null);
+    // rawAmount хранит ввод пользователя "как есть", parsedAmount — безопасное число для формулы.
+    const parsedAmount = useMemo(() => parseAmountInput(rawAmount), [rawAmount]);
+    const handleFromChange = (currency) => {
+        setFromCurrency(currency);
+        onRememberPair(currency, toCurrency);
+    };
+    const handleToChange = (currency) => {
+        setToCurrency(currency);
+        onRememberPair(fromCurrency, currency);
+    };
+    const handleSwap = () => {
+        const nextFrom = toCurrency;
+        const nextTo = fromCurrency;
+        // Меняем валюты местами и сразу запоминаем пару в настройках.
+        setFromCurrency(nextFrom);
+        setToCurrency(nextTo);
+        onRememberPair(nextFrom, nextTo);
+    };
+    const handleConvert = () => {
+        // Сначала валидируем пользовательский ввод и выбранные валюты.
+        const validation = validateConversionInput(rawAmount, fromCurrency, toCurrency);
+        if (validation.error || validation.parsedAmount === null) {
+            const message = validation.error ?? "Некорректные данные для конвертации";
+            setInlineError(message);
+            onNotify({
+                kind: "error",
+                title: "Ошибка валидации",
+                message
+            });
+            return;
+        }
+        // Курсы должны быть загружены до выполнения вычисления.
+        if (!ratesState) {
+            const message = "Курсы еще загружаются. Попробуйте снова.";
+            setInlineError("Курсы пока не загружены");
+            onNotify({
+                kind: "error",
+                title: "Курсы недоступны",
+                message
+            });
+            return;
+        }
+        const rateFrom = ratesState.rates[fromCurrency];
+        const rateTo = ratesState.rates[toCurrency];
+        // Защита от битых курсов (NaN/0/отрицательные), чтобы избежать некорректного результата.
+        if (!Number.isFinite(rateFrom) || !Number.isFinite(rateTo) || rateFrom <= 0 || rateTo <= 0) {
+            const message = "Не удалось выполнить конвертацию из-за некорректных курсов.";
+            setInlineError("Некорректные данные курсов");
+            onNotify({
+                kind: "error",
+                title: "Некорректные курсы",
+                message
+            });
+            return;
+        }
+        // Основная формула конвертации для rubPerUnit:
+        // result = amount * rateFrom / rateTo
+        const rawResult = validation.parsedAmount * rateFrom / rateTo;
+        setInlineError(null);
+        setResult(rawResult);
+        setLastAmount(validation.parsedAmount);
+        // Сохраняем полную запись операции, чтобы потом показать детали в истории.
+        onConverted({
+            id: createHistoryId(),
+            from: fromCurrency,
+            to: toCurrency,
+            amount: validation.parsedAmount,
+            result: rawResult,
+            timestamp: Date.now(),
+            rateFrom,
+            rateTo
+        });
+        // Нотификация об успешной конвертации.
+        onNotify({
+            kind: "success",
+            title: "Конвертация выполнена",
+            message: `${formatAmount(validation.parsedAmount)} ${CURRENCY_BY_CODE[fromCurrency].symbol} -> ${formatAmount(rawResult)} ${CURRENCY_BY_CODE[toCurrency].symbol}`
+        });
+    };
+    return (<section className="glass-panel converter-card" id="converter" aria-labelledby="converter-title">
+      <div className="panel-head">
+        <h2 id="converter-title">Конвертер валют</h2>
+        <span className="status-pill" aria-live="polite">
+          {disabled ? "Загрузка курсов" : "Готово"}
+        </span>
+      </div>
+
+      <AmountInput value={rawAmount} parsedAmount={parsedAmount} error={inlineError} disabled={disabled} onChange={setRawAmount}/>
+
+      <RateDateInput value={selectedRateDate} maxDate={maxRateDate} disabled={disabled} onChange={onRateDateChange}/>
+
+      <div className="currency-row">
+        <CurrencySelect id="from-currency" label="Из" value={fromCurrency} disabled={disabled} onChange={handleFromChange}/>
+
+        <SwapButton disabled={disabled} onSwap={handleSwap}/>
+
+        <CurrencySelect id="to-currency" label="В" value={toCurrency} disabled={disabled} onChange={handleToChange}/>
+      </div>
+
+      <button type="button" className="primary-button convert-button" onClick={handleConvert} disabled={disabled} aria-label="Конвертировать выбранные валюты">
+        Конвертировать
+      </button>
+
+      {ratesState ? (<ResultPanel amount={lastAmount} result={result} from={fromCurrency} to={toCurrency} ratesMeta={ratesState.meta} rateFrom={ratesState.rates[fromCurrency]} rateTo={ratesState.rates[toCurrency]}/>) : null}
+    </section>);
+};

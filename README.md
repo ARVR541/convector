@@ -1,11 +1,11 @@
 # Конвектор валют
 
 ## Обзор проекта
-Это full-stack курсовой проект с фронтендом на React + TypeScript и бэкендом на Express + TypeScript.
+Это full-stack курсовой проект с фронтендом на React + JSX и бэкендом на Express + TypeScript.
 Приложение конвертирует валюты по курсам Центрального банка России (через backend-proxy), поддерживает локальное кэширование, fallback-поведение, историю конвертаций, сохранение темы, выбор исторической даты курса и аккуратный доступный UI.
 
 ## Технологии
-- Frontend: React 18, TypeScript, Vite
+- Frontend: React 18, JSX, Vite
 - Backend: Node.js, Express, TypeScript
 - Источник API: JSON ЦБ РФ (`https://www.cbr-xml-daily.ru/daily_json.js`)
 - Хранение: `localStorage` в браузере + in-memory TTL кэш на бэкенде
@@ -122,21 +122,21 @@ Fallback-ответ со stale-данными (если внешний API не�
 - `currency_converter_user_settings_v1`: настройки пользователя (`theme`, `preferredFrom`, `preferredTo`)
 
 ## Чеклист требований курсовой
-- ✅ Frontend на React + TypeScript + Vite
-- ✅ Backend на Node.js + Express + TypeScript
-- ✅ Backend-proxy к CBR JSON (`/api/rates`)
-- ✅ Поддержка более 5 валют: RUB, USD, EUR, GBP, CNY, JPY, CHF
-- ✅ Формула конвертации по RUB-per-unit (`result = amount * rateFrom / rateTo`)
-- ✅ In-memory TTL кэш на бэкенде (1 час)
-- ✅ Кэш курсов во frontend localStorage с TTL (1 час)
-- ✅ Fallback при ошибке: кэш + warning; без кэша -> error + retry
-- ✅ История последних 10 конвертаций в localStorage
-- ✅ UI истории с раскрываемыми деталями и подтверждением очистки
-- ✅ Валидация суммы и выбранных валют
-- ✅ Показ даты курсов и времени последнего локального обновления
-- ✅ Loader + toast-уведомления для success/warn/error
-- ✅ Тёмная тема по умолчанию + сохранение theme toggle
-- ✅ Полировка интерфейса: градиенты, glass-эффект, glow карточек, микро-взаимодействия
-- ✅ Доступность: клавиатурный фокус, ARIA-атрибуты, семантическая разметка
-- ✅ Выбор исторической даты курсов в интерфейсе конвертера
-- ✅ Навигация в Header по страницам: `/`, `/history`, `/about`
+-  Frontend на React + JSX + Vite
+-  Backend на Node.js + Express + TypeScript
+-  Backend-proxy к CBR JSON (`/api/rates`)
+-  Поддержка более 5 валют: RUB, USD, EUR, GBP, CNY, JPY, CHF
+-  Формула конвертации по RUB-per-unit (`result = amount * rateFrom / rateTo`)
+-  In-memory TTL кэш на бэкенде (1 час)
+-  Кэш курсов во frontend localStorage с TTL (1 час)
+-  Fallback при ошибке: кэш + warning; без кэша -> error + retry
+-  История последних 10 конвертаций в localStorage
+-  UI истории с раскрываемыми деталями и подтверждением очистки
+-  Валидация суммы и выбранных валют
+-  Показ даты курсов и времени последнего локального обновления
+-  Loader + toast-уведомления для success/warn/error
+-  Тёмная тема по умолчанию + сохранение theme toggle
+-  Полировка интерфейса: градиенты, glass-эффект, glow карточек, микро-взаимодействия
+-  Доступность: клавиатурный фокус, ARIA-атрибуты, семантическая разметка
+-  Выбор исторической даты курсов в интерфейсе конвертера
+-  Навигация в Header по страницам: `/`, `/history`, `/about`
